@@ -1,12 +1,28 @@
-<!DOCTYPE html>
+<!--
+Package: eTube - Offline-ready PWA
+Files included below in this single document (copy each into your repo root):
+  1) index.html        -> main single-file app (contains integrated "My Files" module)
+  2) manifest.json     -> PWA manifest
+  3) service-worker.js -> Service Worker for offline caching
+
+INSTRUCTIONS:
+- Create three files in your repo root with the exact contents below: index.html, manifest.json, service-worker.js.
+- Add icon-192.png and icon-512.png to repo root (or update manifest with your icon paths).
+- Commit and push, enable GitHub Pages (branch: main, folder: /root), then visit the URL while online once to let the Service Worker cache assets.
+- To test offline: open the site, then go offline and reload.
+
+-->
+
+<!-- ===== index.html ===== -->
+<!doctype html>
 <html lang="en">
 <head>
-  <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#121212" />
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>e tube - Productive YouTube</title>
-  <!-- Google Fonts: Inter -->
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>e tube - Productive YouTube (Offline-ready)</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#121212">
+  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
@@ -15,337 +31,57 @@
   <!-- QR Code Generator Library -->
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <style>
-    :root {
-      --bg-color: #121212;
-      --surface-color: #1e1e1e;
-      --primary-color: #1db954;
-      --text-primary: #ffffff;
-      --text-secondary: #aaaaaa;
-      --border-color: #2e2e2e;
-    }
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      padding: 20px 20px 100px 20px; /* Added bottom padding for nav bar */
-      margin: 0;
-      background-color: var(--bg-color);
-      color: var(--text-primary);
-    }
-    h1 {
-      text-align: center;
-      margin-bottom: 20px;
-      color: var(--primary-color);
-      font-weight: 700;
-    }
-    #player-container {
-      position: relative;
-      width: 100%;
-      max-width: 640px; /* Slightly larger for better viewing */
-      margin: 0 auto 30px auto;
-      aspect-ratio: 16 / 9;
-      border-radius: 12px; /* Smoother corners */
-      overflow: hidden;
-      background-color: var(--surface-color);
-      border: 1px solid var(--border-color);
-    }
-    #player {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      border: none;
-    }
-    #player-placeholder {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      padding: 20px;
-      box-sizing: border-box;
-      text-align: center;
-    }
-    #player-placeholder h3 {
-        margin-top: 0;
-        margin-bottom: 15px;
-        font-weight: 500;
-        color: var(--text-secondary);
-    }
-    #player-placeholder button {
-        background-color: var(--primary-color);
-        color: var(--text-primary);
-        border: none;
-        padding: 10px 20px;
-        margin: 5px;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: 500;
-        transition: background-color 0.2s ease;
-    }
-    #player-placeholder button:hover {
-        background-color: #1aa84c;
-    }
-    .header-controls {
-        background-color: var(--surface-color);
-        padding: 15px;
-        border-radius: 12px;
-        max-width: 800px;
-        margin: 0 auto 30px auto;
-        border: 1px solid var(--border-color);
-    }
-    .form-container {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      justify-content: center;
-      margin-bottom: 0;
-    }
-    #actions-container {
-        margin-top: 15px;
-        border-top: 1px solid var(--border-color);
-        padding-top: 15px;
-    }
-    .form-container input, .form-container button {
-      padding: 10px;
-      border: none;
-      border-radius: 8px;
-      font-size: 14px;
-      background-color: #2e2e2e;
-      color: var(--text-primary);
-      border: 1px solid #333;
-    }
-    .form-container input {
-      flex: 1 1 150px;
-    }
-    .form-container button {
-      background-color: var(--primary-color);
-      cursor: pointer;
-      font-weight: 500;
-      border: none;
-    }
-    .form-container button.secondary {
-      background-color: #333;
-    }
-    #searchInput {
-      width: 100%;
-      max-width: 400px;
-      padding: 12px;
-      margin: 0 auto 30px;
-      display: block;
-      border-radius: 8px;
-      border: 1px solid var(--border-color);
-      font-size: 14px;
-      background-color: var(--surface-color);
-      color: var(--text-primary);
-    }
-    .category-section {
-      margin-bottom: 40px;
-    }
-    .category-title {
-      font-size: 20px;
-      font-weight: 700;
-      margin-bottom: 15px;
-      color: var(--primary-color);
-      padding-left: 10px;
-    }
-    .videos-grid {
-      display: grid; /* Switched to grid for better alignment */
-      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-      gap: 15px;
-      justify-content: center;
-      padding: 10px;
-      border-radius: 8px;
-    }
-    .videos-grid.drag-over {
-      background-color: rgba(29, 185, 84, 0.1);
-      box-shadow: 0 0 10px rgba(29, 185, 84, 0.3);
-    }
-    .card {
-      background-color: var(--surface-color);
-      padding: 10px;
-      border-radius: 12px;
-      cursor: pointer;
-      text-align: center;
-      border: 1px solid var(--border-color);
-      position: relative;
-      user-select: none;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    .card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3), 0 0 10px rgba(29, 185, 84, 0.5);
-    }
-    .video-card {
-      width: auto; /* Let grid handle width */
-    }
-    .video-card.dragging {
-      opacity: 0.6;
-      cursor: grabbing;
-      box-shadow: 0 0 20px var(--primary-color);
-      transform: scale(1.05);
-      z-index: 1000;
-    }
-    .card img {
-      width: 100%;
-      border-radius: 8px;
-      pointer-events: none;
-      object-fit: cover;
-    }
-    .video-card img { height: 90px; }
-    .video-info { margin-top: 8px; }
-    .video-info input {
-      width: calc(100% - 10px);
-      background: transparent;
-      border: 1px solid transparent;
-      color: var(--text-secondary);
-      padding: 5px;
-      margin: 2px 0;
-      border-radius: 5px;
-      text-align: center;
-      font-size: 13px;
-      cursor: text;
-      transition: background-color 0.2s, border-color 0.2s;
-    }
-    .video-info input:focus {
-        background-color: #2e2e2e;
-        border: 1px solid #444;
-        color: var(--text-primary);
-    }
-    .delete-button {
-      position: absolute;
-      top: 5px;
-      right: 5px;
-      background: rgba(40, 40, 40, 0.7);
-      color: white;
-      border: none;
-      border-radius: 50%;
-      width: 24px;
-      height: 24px;
-      cursor: pointer;
-      font-weight: bold;
-      font-size: 16px;
-      line-height: 24px;
-      padding: 0;
-      user-select: none;
-      z-index: 5;
-      backdrop-filter: blur(2px);
-    }
-    .like-button {
-        position: absolute;
-        bottom: 5px;
-        right: 5px;
-        background: none;
-        border: none;
-        cursor: pointer;
-        padding: 5px;
-    }
-    .like-button svg {
-        width: 20px;
-        height: 20px;
-        fill: #777;
-        transition: fill 0.2s ease, transform 0.2s ease;
-    }
-    .like-button.liked svg {
-        fill: #e74c3c;
-        transform: scale(1.1);
-    }
-    #message {
-      text-align: center;
-      min-height: 20px;
-      margin-bottom: 15px;
-      color: var(--primary-color);
-      font-weight: 500;
-    }
-    /* Modal Styles */
-    .modal-overlay {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background-color: rgba(0, 0, 0, 0.7); display: none;
-      justify-content: center; align-items: center; z-index: 2000;
-      backdrop-filter: blur(5px);
-    }
-    .modal-content {
-      background-color: var(--surface-color); padding: 25px; border-radius: 12px;
-      text-align: center; max-width: 90%; border: 1px solid var(--border-color);
-    }
-    .modal-content h2 { margin-top: 0; }
-    #qrcode-container {
-      padding: 10px; background-color: white; border-radius: 8px; display: inline-block;
-    }
-    #qr-fallback-view button {
-        background-color: var(--primary-color); color: white; padding: 10px 15px;
-        border-radius: 8px; border: none; cursor: pointer; font-weight: 500; margin-top: 10px;
-    }
-    /* Bottom Navigation */
-    .bottom-nav {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        height: 65px;
-        background-color: var(--surface-color);
-        display: flex;
-        justify-content: space-around;
-        align-items: center;
-        border-top: 1px solid var(--border-color);
-        z-index: 1000;
-    }
-    .nav-item {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        color: var(--text-secondary);
-        transition: color 0.2s ease;
-        flex-grow: 1;
-        height: 100%;
-        padding-top: 5px;
-    }
-    .nav-item svg {
-        width: 24px;
-        height: 24px;
-        fill: currentColor;
-    }
-    .nav-item span {
-        font-size: 12px;
-        margin-top: 4px;
-    }
-    .nav-item.active {
-        color: var(--primary-color);
-    }
-    /* Channel Card */
-    .channel-card {
-        width: auto;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-decoration: none;
-    }
-    .channel-card .channel-thumbnail {
-        width: 80px;
-        height: 80px;
-        border-radius: 50%;
-        background-color: #333;
-        margin-bottom: 10px;
-        object-fit: cover;
-    }
-    .channel-card .channel-name {
-        font-size: 14px;
-        font-weight: 500;
-        color: #eee;
-        word-break: break-word;
-    }
-    .empty-state {
-        text-align: center;
-        color: var(--text-secondary);
-        padding: 50px 20px;
-        font-size: 16px;
-    }
+    :root{--bg-color:#121212;--surface-color:#1e1e1e;--primary-color:#1db954;--text-primary:#fff;--text-secondary:#aaa;--border-color:#2e2e2e}
+    html,body{height:100%;}
+    body{font-family:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;margin:0;padding:20px 20px 120px 20px;background:var(--bg-color);color:var(--text-primary)}
+    h1{text-align:center;margin-bottom:20px;color:var(--primary-color);font-weight:700}
+    #player-container{position:relative;width:100%;max-width:840px;margin:0 auto 30px;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:var(--surface-color);border:1px solid var(--border-color)}
+    #player{position:absolute;top:0;left:0;width:100%;height:100%;border:none}
+    #player-placeholder{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px;box-sizing:border-box;text-align:center}
+    #player-placeholder h3{margin:0 0 12px;color:var(--text-secondary);font-weight:500}
+    #player-placeholder button{background:var(--primary-color);color:var(--text-primary);border:none;padding:10px 20px;margin:5px;border-radius:8px;cursor:pointer;font-size:14px}
+    .header-controls{background:var(--surface-color);padding:15px;border-radius:12px;max-width:1000px;margin:0 auto 20px;border:1px solid var(--border-color)}
+    .form-container{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:0}
+    .form-container input,.form-container button{padding:10px;border:none;border-radius:8px;font-size:14px;background:#2e2e2e;color:var(--text-primary);border:1px solid #333}
+    .form-container button{background:var(--primary-color);font-weight:500}
+    .form-container button.secondary{background:#333}
+    #searchInput{width:100%;max-width:460px;padding:12px;margin:10px auto 20px;display:block;border-radius:8px;border:1px solid var(--border-color);background:var(--surface-color);color:var(--text-primary)}
+    .videos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:15px;padding:10px;border-radius:8px}
+    .card{background:var(--surface-color);padding:10px;border-radius:12px;cursor:pointer;text-align:center;border:1px solid var(--border-color);position:relative;user-select:none;transition:transform .15s}
+    .card:hover{transform:translateY(-4px)}
+    .video-card img{height:90px;width:100%;border-radius:8px;object-fit:cover}
+    .video-info{margin-top:8px}
+    .video-info input{width:calc(100% - 10px);background:transparent;border:1px solid transparent;color:var(--text-secondary);padding:5px;margin:2px 0;border-radius:5px;text-align:center;font-size:13px}
+    .video-info input:focus{background:#2e2e2e;border:1px solid #444;color:var(--text-primary)}
+    .delete-button{position:absolute;top:5px;right:5px;background:rgba(40,40,40,.7);color:white;border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;font-weight:bold;font-size:16px;line-height:24px;padding:0}
+    .like-button{position:absolute;bottom:5px;right:5px;background:none;border:none;cursor:pointer;padding:5px}
+    .like-button svg{width:20px;height:20px;fill:#777}
+    .like-button.liked svg{fill:#e74c3c;transform:scale(1.1)}
+    #message{text-align:center;min-height:20px;margin-bottom:15px;color:var(--primary-color);font-weight:500}
+    .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);display:none;justify-content:center;align-items:center;z-index:2000}
+    .modal-content{background:var(--surface-color);padding:25px;border-radius:12px;text-align:center;max-width:90%;border:1px solid var(--border-color)}
+    #qrcode-container{padding:10px;background:#fff;border-radius:8px;display:inline-block}
+    .bottom-nav{position:fixed;bottom:0;left:0;width:100%;height:70px;background:var(--surface-color);display:flex;justify-content:space-around;align-items:center;border-top:1px solid var(--border-color);z-index:1000}
+    .nav-item{display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:var(--text-secondary);transition:color .2s;flex-grow:1;height:100%;padding-top:5px}
+    .nav-item svg{width:24px;height:24px;fill:currentColor}
+    .nav-item span{font-size:12px;margin-top:4px}
+    .nav-item.active{color:var(--primary-color)}
+    .channel-thumbnail{width:80px;height:80px;border-radius:50%;background:#333;margin-bottom:10px;object-fit:cover}
+    .channel-name{font-size:14px;font-weight:500;color:#eee}
+    .empty-state{text-align:center;color:var(--text-secondary);padding:50px 20px;font-size:16px}
+
+    /* Files UI */
+    #files-section{max-width:1000px;margin:20px auto;padding:12px;border-radius:12px;border:1px solid var(--border-color);background:var(--surface-color)}
+    .file-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .file-controls input[type=text]{padding:10px;border-radius:8px;border:1px solid #333;background:#2e2e2e;color:var(--text-primary)}
+    .file-list{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px}
+    .file-item{background:#171717;padding:10px;border-radius:8px;border:1px solid #2c2c2c;width:200px;text-align:center}
+    .file-item img{max-width:100%;border-radius:6px}
+    .file-item video{max-width:100%;border-radius:6px}
+    .file-item small{display:block;color:var(--text-secondary);margin-top:6px}
+    .file-item button{margin-top:8px;background:#b22222;color:white;border:none;padding:6px 10px;border-radius:6px;cursor:pointer}
+
+    @media(min-width:900px){body{padding:32px}}
   </style>
 </head>
 <body>
@@ -354,42 +90,53 @@
   <div id="player-container">
     <div id="player"></div>
     <div id="player-placeholder">
-        <h3 id="placeholder-message"></h3>
-        <div id="placeholder-buttons"></div>
+      <h3 id="placeholder-message">Select a video from your library to play.</h3>
+      <div id="placeholder-buttons"></div>
     </div>
   </div>
 
   <div id="message"></div>
 
   <div class="header-controls">
-      <div id="forms-container">
-        <div class="form-container" id="video-form">
-          <input type="text" id="videoInput" placeholder="Paste YouTube link..." />
-          <input type="text" id="categoryInput" placeholder="Category (optional)" list="categorySuggestions" />
-          <datalist id="categorySuggestions"></datalist>
-          <input type="text" id="titleInput" placeholder="Title (optional)" />
-          <button onclick="addVideo()">Add Video</button>
-        </div>
-        <div class="form-container" id="channel-form" style="display: none;">
-          <input type="text" id="channelInput" placeholder="Paste YouTube channel link..." />
-          <input type="text" id="channelNameInput" placeholder="Name (optional)" />
-          <button onclick="addChannel()">Add Channel</button>
-        </div>
+    <div id="forms-container">
+      <div class="form-container" id="video-form">
+        <input type="text" id="videoInput" placeholder="Paste YouTube link...">
+        <input type="text" id="categoryInput" placeholder="Category (optional)" list="categorySuggestions">
+        <datalist id="categorySuggestions"></datalist>
+        <input type="text" id="titleInput" placeholder="Title (optional)">
+        <button onclick="addVideo()">Add Video</button>
       </div>
-      <div id="actions-container">
-        <div class="form-container">
-            <button class="secondary" onclick="showQrModal()">Sync via QR</button>
-            <button class="secondary" onclick="exportData()">Export</button>
-            <input type="file" id="importFile" onchange="importData(event)" accept=".json" style="display: none;" />
-            <button class="secondary" onclick="document.getElementById('importFile').click()">Import</button>
-        </div>
+      <div class="form-container" id="channel-form" style="display:none;">
+        <input type="text" id="channelInput" placeholder="Paste YouTube channel link...">
+        <input type="text" id="channelNameInput" placeholder="Name (optional)">
+        <button onclick="addChannel()">Add Channel</button>
       </div>
+    </div>
+    <div id="actions-container" style="margin-top:12px;border-top:1px solid var(--border-color);padding-top:12px">
+      <div class="form-container">
+        <button class="secondary" onclick="showQrModal()">Sync via QR</button>
+        <button class="secondary" onclick="exportData()">Export</button>
+        <input type="file" id="importFile" onchange="importData(event)" accept=".json" style="display:none">
+        <button class="secondary" onclick="document.getElementById('importFile').click()">Import</button>
+      </div>
+    </div>
   </div>
 
-
-  <input type="text" id="searchInput" placeholder="Search..." oninput="renderContent()" />
+  <input type="text" id="searchInput" placeholder="Search..." oninput="renderContent()">
 
   <div id="content-container"></div>
+
+  <!-- Files Section -->
+  <div id="files-section" style="display:none">
+    <h2 style="color:var(--primary-color);margin:0 0 10px 0">📂 My Files & Links</h2>
+    <div class="file-controls">
+      <input type="text" id="fileLink" placeholder="Paste link (Drive, Dropbox, OneDrive...)" style="flex:1;min-width:260px">
+      <input type="text" id="fileTitle" placeholder="Title (optional)">
+      <button onclick="addFile()">Add Link</button>
+      <input type="file" id="fileUpload" multiple onchange="uploadLocalFiles()" style="margin-left:8px">
+    </div>
+    <div id="fileList" class="file-list"></div>
+  </div>
 
   <!-- Bottom Navigation -->
   <nav class="bottom-nav">
@@ -401,13 +148,17 @@
       <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
       <span>Library</span>
     </div>
-     <div class="nav-item" data-view="channels" onclick="navigateTo('channels')">
+    <div class="nav-item" data-view="channels" onclick="navigateTo('channels')">
       <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
       <span>Channels</span>
     </div>
     <div class="nav-item" data-view="liked" onclick="navigateTo('liked')">
       <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
       <span>Liked</span>
+    </div>
+    <div class="nav-item" data-view="files" onclick="navigateTo('files')">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM13 9V3.5L18.5 9H13z"/></svg>
+      <span>Files</span>
     </div>
   </nav>
 
@@ -419,483 +170,287 @@
         <p>Scan this with your other device's camera.</p>
         <div id="qrcode-container"></div>
       </div>
-      <div id="qr-fallback-view" style="display: none;">
+      <div id="qr-fallback-view" style="display:none">
         <h2>Data Too Large for QR Code</h2>
         <p>Your library is too large to sync with a QR code. Please use the file export/import method instead.</p>
         <button onclick="exportData(); hideQrModal();">Export Data File</button>
       </div>
-      <p style="font-size: 12px; color: #aaa; margin-top: 15px;">Click anywhere to close.</p>
+      <p style="font-size:12px;color:#aaa;margin-top:15px">Click anywhere to close.</p>
     </div>
   </div>
 
-
   <script>
+    // -------------------- App State --------------------
     let videoLinks = [];
     let channels = [];
+    let userFiles = [];
     let draggedItem = null;
-    let player;
+    let player = null;
     let currentVideo = null;
     let currentView = 'home';
 
-    // --- State & Navigation ---
+    // -------------------- Storage Helpers --------------------
+    function saveData() { localStorage.setItem('videoLinks', JSON.stringify(videoLinks)); localStorage.setItem('channels', JSON.stringify(channels)); localStorage.setItem('userFiles', JSON.stringify(userFiles)); }
+    function loadData() { videoLinks = JSON.parse(localStorage.getItem('videoLinks') || '[]'); channels = JSON.parse(localStorage.getItem('channels') || '[]'); userFiles = JSON.parse(localStorage.getItem('userFiles') || '[]'); }
+
+    // -------------------- Navigation --------------------
     function navigateTo(view) {
-        currentView = view;
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.classList.toggle('active', item.dataset.view === view);
-        });
-        document.getElementById('video-form').style.display = (view === 'home' || view === 'library') ? 'flex' : 'none';
-        document.getElementById('channel-form').style.display = view === 'channels' ? 'flex' : 'none';
-        renderContent();
+      currentView = view;
+      document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.view === view));
+      document.getElementById('video-form').style.display = (view === 'home' || view === 'library') ? 'flex' : 'none';
+      document.getElementById('channel-form').style.display = view === 'channels' ? 'flex' : 'none';
+      document.getElementById('files-section').style.display = view === 'files' ? 'block' : 'none';
+      renderContent();
     }
-    
-    // --- YouTube Player API Functions ---
-    function onPlayerReady(event) { event.target.playVideo(); }
+
+    // -------------------- YouTube Player API --------------------
+    function onPlayerReady(event) { try{ event.target.playVideo(); }catch(e){} }
     function onPlayerStateChange(event) { if (event.data === YT.PlayerState.ENDED) { showPostPlayScreen(); } }
 
     function playVideo(video) {
-        currentVideo = video;
-        const playerContainer = document.getElementById('player-container');
-        const placeholder = document.getElementById('player-placeholder');
-        
-        placeholder.style.display = 'none';
-        playerContainer.scrollIntoView({ behavior: "smooth" });
+      currentVideo = video;
+      const playerContainer = document.getElementById('player-container');
+      const placeholder = document.getElementById('player-placeholder');
+      placeholder.style.display = 'none';
+      playerContainer.scrollIntoView({ behavior: 'smooth' });
+      if (player) player.destroy();
 
-        if (player) player.destroy();
-
-        player = new YT.Player('player', {
-            height: '100%', width: '100%',
-            videoId: video.type === 'video' ? video.id : undefined,
-            playerVars: { 'autoplay': 1, 'rel': 0, 'listType': video.type === 'playlist' ? 'playlist' : undefined, 'list': video.type === 'playlist' ? video.id : undefined },
-            events: { 'onReady': onPlayerReady, 'onStateChange': onPlayerStateChange }
-        });
+      player = new YT.Player('player', {
+        height: '100%', width: '100%',
+        videoId: video.type === 'video' ? video.id : undefined,
+        playerVars: { 'autoplay': 1, 'rel': 0, 'listType': video.type === 'playlist' ? 'playlist' : undefined, 'list': video.type === 'playlist' ? video.id : undefined },
+        events: { 'onReady': onPlayerReady, 'onStateChange': onPlayerStateChange }
+      });
     }
-    
-    function setupInitialPlayerView() {
-        const placeholder = document.getElementById('player-placeholder');
-        const messageEl = document.getElementById('placeholder-message');
-        const buttonsEl = document.getElementById('placeholder-buttons');
-        
-        if(player) { player.destroy(); player = null; }
-        document.getElementById('player').innerHTML = '';
 
-        messageEl.textContent = 'Select a video from your library to play.';
-        buttonsEl.innerHTML = '';
-        placeholder.style.display = 'flex';
+    function setupInitialPlayerView() {
+      const placeholder = document.getElementById('player-placeholder');
+      if (player) { try{ player.destroy(); }catch(e){} player = null; }
+      document.getElementById('player').innerHTML = '';
+      document.getElementById('placeholder-message').textContent = 'Select a video from your library to play.';
+      document.getElementById('placeholder-buttons').innerHTML = '';
+      placeholder.style.display = 'flex';
     }
 
     function showPostPlayScreen() {
-        if(player) { player.destroy(); player = null; }
-        document.getElementById('player').innerHTML = '';
-
-        const placeholder = document.getElementById('player-placeholder');
-        const messageEl = document.getElementById('placeholder-message');
-        const buttonsEl = document.getElementById('placeholder-buttons');
-        buttonsEl.innerHTML = '';
-
-        if (Math.random() < 0.5) {
-            messageEl.textContent = "What's next to play?";
-            const exploreButton = document.createElement('button');
-            exploreButton.textContent = 'Explore Library';
-            exploreButton.onclick = () => { document.getElementById('content-container').scrollIntoView({ behavior: 'smooth' }); };
-            buttonsEl.appendChild(exploreButton);
-        } else {
-            messageEl.textContent = `Autoplay next video in the "${currentVideo.category}" category?`;
-            const yesButton = document.createElement('button');
-            yesButton.textContent = 'Yes, Autoplay';
-            yesButton.onclick = () => { autoplayNext(); };
-            buttonsEl.appendChild(yesButton);
-        }
-        placeholder.style.display = 'flex';
+      if (player) { try{ player.destroy(); }catch(e){} player = null; }
+      document.getElementById('player').innerHTML = '';
+      const placeholder = document.getElementById('player-placeholder');
+      const messageEl = document.getElementById('placeholder-message');
+      const buttonsEl = document.getElementById('placeholder-buttons');
+      buttonsEl.innerHTML = '';
+      if (Math.random() < 0.5) {
+        messageEl.textContent = "What's next to play?";
+        const exploreButton = document.createElement('button'); exploreButton.textContent = 'Explore Library'; exploreButton.onclick = () => { document.getElementById('content-container').scrollIntoView({ behavior: 'smooth' }); };
+        buttonsEl.appendChild(exploreButton);
+      } else {
+        messageEl.textContent = `Autoplay next video in the "${currentVideo && currentVideo.category ? currentVideo.category : 'Uncategorized'}" category?`;
+        const yesButton = document.createElement('button'); yesButton.textContent = 'Yes, Autoplay'; yesButton.onclick = () => { autoplayNext(); };
+        buttonsEl.appendChild(yesButton);
+      }
+      placeholder.style.display = 'flex';
     }
 
     function autoplayNext() {
-        if (!currentVideo) return;
-        const categoryVideos = videoLinks.filter(v => v.category === currentVideo.category && v.type === 'video');
-        if (categoryVideos.length <= 1) {
-            showMessage(`Only one video in "${currentVideo.category}".`, 4000);
-            setupInitialPlayerView();
-            return;
-        }
-        const currentIndex = categoryVideos.findIndex(v => v.id === currentVideo.id);
-        const nextIndex = (currentIndex + 1) % categoryVideos.length;
-        playVideo(categoryVideos[nextIndex]);
+      if (!currentVideo) return;
+      const categoryVideos = videoLinks.filter(v => v.category === currentVideo.category && v.type === 'video');
+      if (categoryVideos.length <= 1) { showMessage(`Only one video in "${currentVideo.category}".`, 4000); setupInitialPlayerView(); return; }
+      const currentIndex = categoryVideos.findIndex(v => v.id === currentVideo.id);
+      const nextIndex = (currentIndex + 1) % categoryVideos.length;
+      playVideo(categoryVideos[nextIndex]);
     }
 
-    // --- Core Functions ---
-    function extractVideoID(url) {
-      try {
-        const u = new URL(url);
-        if (u.hostname.includes("youtu.be")) return u.pathname.slice(1).split('?')[0];
-        return u.searchParams.get("v");
-      } catch { return null; }
-    }
-    function extractPlaylistID(url) {
-      try { return new URL(url).searchParams.get("list"); } catch { return null; }
-    }
-    function extractChannelHandle(url) {
-        try {
-            const path = new URL(url).pathname;
-            const parts = path.split('/');
-            if (parts[1] && (parts[1] === 'c' || parts[1] === 'channel' || parts[1].startsWith('@'))) {
-                return parts[2] || parts[1];
-            }
-            return null;
-        } catch { return null; }
-    }
-    function saveData() {
-      localStorage.setItem("videoLinks", JSON.stringify(videoLinks));
-      localStorage.setItem("channels", JSON.stringify(channels));
-    }
-    function loadData() {
-        videoLinks = JSON.parse(localStorage.getItem("videoLinks") || "[]");
-        channels = JSON.parse(localStorage.getItem("channels") || "[]");
-    }
-    function showMessage(text, duration = 3000) {
-      const msg = document.getElementById("message");
-      msg.textContent = text;
-      setTimeout(() => msg.textContent = "", duration);
-    }
+    // -------------------- Utilities --------------------
+    function extractVideoID(url) { try { const u = new URL(url); if (u.hostname.includes('youtu.be')) return u.pathname.slice(1).split('?')[0]; return u.searchParams.get('v'); } catch { return null; } }
+    function extractPlaylistID(url) { try { return new URL(url).searchParams.get('list'); } catch { return null; } }
+    function extractChannelHandle(url) { try { const path = new URL(url).pathname; const parts = path.split('/'); if (parts[1] && (parts[1] === 'c' || parts[1] === 'channel' || parts[1].startsWith('@'))) { return parts[2] || parts[1]; } return null; } catch { return null; } }
+    function showMessage(text, duration = 3000) { const msg = document.getElementById('message'); msg.textContent = text; setTimeout(() => { if (msg.textContent === text) msg.textContent = ''; }, duration); }
 
-    // --- CRUD Operations ---
+    // -------------------- CRUD: Videos & Channels --------------------
     function addVideo() {
-      const input = document.getElementById("videoInput").value.trim();
-      const category = document.getElementById("categoryInput").value.trim() || "Uncategorized";
-      const title = document.getElementById("titleInput").value.trim();
+      const input = document.getElementById('videoInput').value.trim();
+      const category = document.getElementById('categoryInput').value.trim() || 'Uncategorized';
+      const title = document.getElementById('titleInput').value.trim();
       if (!input) return;
 
       const playlistID = extractPlaylistID(input);
       const videoID = extractVideoID(input);
       let id, type;
-      if (playlistID) { id = playlistID; type = "playlist"; }
-      else if (videoID) { id = videoID; type = "video"; }
-      else { showMessage("🔴 Invalid YouTube URL.", 4000); return; }
+      if (playlistID) { id = playlistID; type = 'playlist'; }
+      else if (videoID) { id = videoID; type = 'video'; }
+      else { showMessage('🔴 Invalid YouTube URL.', 4000); return; }
 
-      if (videoLinks.find(v => v.id === id && v.type === type)) {
-        showMessage("🟡 Item already exists.", 4000); return;
-      }
-
-      videoLinks.unshift({ type, id, category, title: title || id, liked: false }); // Add to the beginning
+      if (videoLinks.find(v => v.id === id && v.type === type)) { showMessage('🟡 Item already exists.', 4000); return; }
+      videoLinks.unshift({ type, id, category, title: title || id, liked: false });
       saveData();
-      document.getElementById("videoInput").value = "";
-      document.getElementById("categoryInput").value = "";
-      document.getElementById("titleInput").value = "";
-      showMessage("✅ Added!");
-      renderContent();
+      document.getElementById('videoInput').value = ''; document.getElementById('categoryInput').value = ''; document.getElementById('titleInput').value = '';
+      showMessage('✅ Added!'); renderContent();
     }
 
     function addChannel() {
-        const input = document.getElementById('channelInput').value.trim();
-        const name = document.getElementById('channelNameInput').value.trim();
-        if(!input) return;
-        const handle = extractChannelHandle(input);
-        if(!handle) {
-            showMessage("🔴 Invalid Channel URL.", 4000); return;
-        }
-        if(channels.find(c => c.handle === handle)) {
-            showMessage("🟡 Channel already exists.", 4000); return;
-        }
-        channels.push({ handle, url: input, name: name || handle });
-        saveData();
-        document.getElementById('channelInput').value = '';
-        document.getElementById('channelNameInput').value = '';
-        showMessage("✅ Channel Added!");
-        renderContent();
+      const input = document.getElementById('channelInput').value.trim();
+      const name = document.getElementById('channelNameInput').value.trim();
+      if (!input) return;
+      const handle = extractChannelHandle(input);
+      if (!handle) { showMessage('🔴 Invalid Channel URL.', 4000); return; }
+      if (channels.find(c => c.handle === handle)) { showMessage('🟡 Channel already exists.', 4000); return; }
+      channels.unshift({ handle, url: input, name: name || handle }); saveData(); document.getElementById('channelInput').value = ''; document.getElementById('channelNameInput').value = ''; showMessage('✅ Channel Added!'); renderContent();
     }
 
     function deleteItem(item, itemType) {
-        if (itemType === 'video') {
-            const idx = videoLinks.findIndex(v => v.id === item.id && v.type === item.type);
-            if (idx > -1) videoLinks.splice(idx, 1);
-        } else if (itemType === 'channel') {
-            const idx = channels.findIndex(c => c.handle === item.handle);
-            if (idx > -1) channels.splice(idx, 1);
-        }
-        saveData();
-        renderContent();
+      if (itemType === 'video') { const idx = videoLinks.findIndex(v => v.id === item.id && v.type === item.type); if (idx > -1) videoLinks.splice(idx, 1); }
+      else if (itemType === 'channel') { const idx = channels.findIndex(c => c.handle === item.handle); if (idx > -1) channels.splice(idx, 1); }
+      saveData(); renderContent();
     }
-    
-    function updateVideoInfo(video, field, value) {
-      const idx = videoLinks.findIndex(v => v.id === video.id && v.type === video.type);
-      if (idx > -1) {
-        videoLinks[idx][field] = value.trim() || videoLinks[idx].id;
-        saveData();
-        renderContent(); 
+
+    function updateVideoInfo(video, field, value) { const idx = videoLinks.findIndex(v => v.id === video.id && v.type === video.type); if (idx > -1) { videoLinks[idx][field] = value.trim() || videoLinks[idx].id; saveData(); renderContent(); } }
+    function toggleLike(video) { const idx = videoLinks.findIndex(v => v.id === video.id && v.type === video.type); if (idx > -1) { videoLinks[idx].liked = !videoLinks[idx].liked; saveData(); renderContent(); } }
+
+    // -------------------- Files Module --------------------
+    function addFile() {
+      const link = document.getElementById('fileLink').value.trim();
+      const title = document.getElementById('fileTitle').value.trim() || link;
+      if (!link) { showMessage('🔴 Paste a valid link or upload a file.'); return; }
+      userFiles.unshift({ type: 'link', title, url: link, date: new Date().toISOString() }); saveData(); renderFiles(); document.getElementById('fileLink').value = ''; document.getElementById('fileTitle').value = ''; showMessage('✅ Link added!');
+    }
+
+    function uploadLocalFiles() {
+      const files = document.getElementById('fileUpload').files; if (!files || files.length === 0) return;
+      for (let f of files) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          userFiles.unshift({ type: 'file', title: f.name, url: e.target.result, mime: f.type, date: new Date().toISOString() }); saveData(); renderFiles(); showMessage('✅ File uploaded!');
+        };
+        // For large files you may want to readAsArrayBuffer and store differently; dataURL is simplest for demo
+        reader.readAsDataURL(f);
       }
+      document.getElementById('fileUpload').value = null;
     }
-    function toggleLike(video) {
-        const idx = videoLinks.findIndex(v => v.id === video.id && v.type === video.type);
-        if(idx > -1) {
-            videoLinks[idx].liked = !videoLinks[idx].liked;
-            saveData();
-            renderContent();
-        }
+
+    function renderFiles() {
+      const container = document.getElementById('fileList'); container.innerHTML = '';
+      if (!userFiles || userFiles.length === 0) { container.innerHTML = '<div class="empty-state">No files or links yet.</div>'; return; }
+      userFiles.forEach((f, i) => {
+        const div = document.createElement('div'); div.className = 'file-item';
+        let preview = '';
+        if (f.type === 'file' && f.mime && f.mime.startsWith('image')) { preview = `<img src="${f.url}" alt="${f.title}">`; }
+        else if (f.type === 'file' && f.mime && f.mime.startsWith('video')) { preview = `<video src="${f.url}" controls></video>`; }
+        else { preview = `<div style="padding:8px 4px;word-break:break-word"><a href="${f.url}" target="_blank" rel="noreferrer">🔗 ${escapeHtml(f.title)}</a></div>`; }
+        div.innerHTML = `${preview}<small>${new Date(f.date).toLocaleString()}</small><button onclick="deleteFile(${i})">Delete</button>`;
+        container.appendChild(div);
+      });
     }
-    
-    // --- Data Sync/Transfer ---
+
+    function deleteFile(i) { if (!confirm('Delete this item?')) return; userFiles.splice(i,1); saveData(); renderFiles(); }
+
+    // -------------------- Data Import/Export & QR --------------------
     function exportData() {
-        const allData = { videos: videoLinks, channels: channels };
-        const dataStr = JSON.stringify(allData, null, 2);
-        const dataBlob = new Blob([dataStr], { type: "application/json" });
-        const url = URL.createObjectURL(dataBlob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = "etube_data.json";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        showMessage("✅ Data exported!");
+      const allData = { videos: videoLinks, channels, files: userFiles };
+      const dataStr = JSON.stringify(allData, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'etube_data.json'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); showMessage('✅ Data exported!');
     }
 
     function importData(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const importedData = JSON.parse(e.target.result);
-                // Check for new format {videos: [], channels: []}
-                if (importedData.videos && Array.isArray(importedData.videos)) {
-                    videoLinks = importedData.videos;
-                    channels = importedData.channels || [];
-                    saveData();
-                    navigateTo('home');
-                    showMessage("✅ Data imported successfully!");
-                } 
-                // Check for old format (just an array of videos)
-                else if (Array.isArray(importedData)) {
-                    videoLinks = importedData;
-                    channels = []; // Clear channels if importing old format
-                    saveData();
-                    navigateTo('home');
-                    showMessage("✅ Old data format imported successfully!");
-                }
-                else { 
-                    showMessage("🔴 Invalid file format.", 4000); 
-                }
-            } catch (error) { 
-                showMessage("🔴 Error reading file.", 5000);
-                console.error("Import Error:", error);
-            }
-        };
-        reader.readAsText(file);
-        event.target.value = '';
+      const file = event.target.files[0]; if (!file) return; const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (imported.videos && Array.isArray(imported.videos)) { videoLinks = imported.videos; channels = imported.channels || []; userFiles = imported.files || []; saveData(); navigateTo('home'); showMessage('✅ Data imported successfully!'); }
+          else if (Array.isArray(imported)) { videoLinks = imported; channels = []; userFiles = []; saveData(); navigateTo('home'); showMessage('✅ Old data format imported!'); }
+          else { showMessage('🔴 Invalid file format.',4000); }
+        } catch (err) { console.error(err); showMessage('🔴 Error reading file.',5000); }
+      };
+      reader.readAsText(file); event.target.value = null;
     }
-    
+
     function handleUrlDataImport() {
-        const params = new URLSearchParams(window.location.search);
-        const data = params.get('data');
-        if (data) {
-            try {
-                const decompressed = LZString.decompressFromEncodedURIComponent(data);
-                const importedData = JSON.parse(decompressed);
-                if (importedData.videos && Array.isArray(importedData.videos)) {
-                    videoLinks = importedData.videos;
-                    channels = importedData.channels || [];
-                    saveData();
-                    showMessage("✅ Sync complete!", 4000);
-                    history.replaceState(null, '', window.location.pathname);
-                }
-            } catch (e) {
-                console.error("Failed to parse sync data:", e);
-                showMessage("🔴 Sync failed. The QR code might be invalid.", 5000);
-            }
-        }
+      const params = new URLSearchParams(window.location.search); const data = params.get('data'); if (!data) return;
+      try {
+        const decompressed = LZString.decompressFromEncodedURIComponent(data); const importedData = JSON.parse(decompressed);
+        if (importedData.videos && Array.isArray(importedData.videos)) { videoLinks = importedData.videos; channels = importedData.channels || []; userFiles = importedData.files || []; saveData(); showMessage('✅ Sync complete!',4000); history.replaceState(null,'',window.location.pathname); }
+      } catch(e){ console.error('Failed to parse sync data:', e); showMessage('🔴 Sync failed. QR invalid.',5000); }
     }
-    
+
     function showQrModal() {
-        const allData = { videos: videoLinks, channels: channels };
-        if (Object.values(allData).every(arr => arr.length === 0)) {
-            showMessage("Add some data first to create a sync code.", 4000);
-            return;
-        }
-        const dataString = JSON.stringify(allData);
-        const compressedData = LZString.compressToEncodedURIComponent(dataString);
-        const currentUrl = window.location.origin + window.location.pathname;
-        const syncUrl = `${currentUrl}?data=${compressedData}`;
-        const QR_CODE_URL_LIMIT = 2000;
-        const qrView = document.getElementById('qr-view');
-        const fallbackView = document.getElementById('qr-fallback-view');
-        if (syncUrl.length > QR_CODE_URL_LIMIT) {
-             qrView.style.display = 'none';
-             fallbackView.style.display = 'block';
-        } else {
-            qrView.style.display = 'block';
-            fallbackView.style.display = 'none';
-            const qrContainer = document.getElementById('qrcode-container');
-            qrContainer.innerHTML = '';
-            new QRCode(qrContainer, {
-                text: syncUrl, width: 256, height: 256,
-                colorDark : "#000000", colorLight : "#ffffff",
-                correctLevel : QRCode.CorrectLevel.H
-            });
-        }
-        document.getElementById('qrModal').style.display = 'flex';
+      const allData = { videos: videoLinks, channels, files: userFiles };
+      if (Object.values(allData).every(arr => arr.length === 0)) { showMessage('Add some data first to create a sync code.',4000); return; }
+      const dataString = JSON.stringify(allData);
+      const compressedData = LZString.compressToEncodedURIComponent(dataString);
+      const currentUrl = window.location.origin + window.location.pathname;
+      const syncUrl = `${currentUrl}?data=${compressedData}`;
+      const QR_CODE_URL_LIMIT = 2000;
+      const qrView = document.getElementById('qr-view'); const fallbackView = document.getElementById('qr-fallback-view');
+      if (syncUrl.length > QR_CODE_URL_LIMIT) { qrView.style.display='none'; fallbackView.style.display='block'; }
+      else { qrView.style.display='block'; fallbackView.style.display='none'; const qrContainer = document.getElementById('qrcode-container'); qrContainer.innerHTML=''; new QRCode(qrContainer, { text: syncUrl, width:256, height:256, colorDark:'#000000', colorLight:'#ffffff', correctLevel:QRCode.CorrectLevel.H }); }
+      document.getElementById('qrModal').style.display='flex';
     }
+    function hideQrModal(){ document.getElementById('qrModal').style.display='none'; }
 
-    function hideQrModal() { document.getElementById('qrModal').style.display = 'none'; }
-
-
-    // --- Main Rendering Logic ---
+    // -------------------- Rendering --------------------
     function renderContent() {
-        const container = document.getElementById("content-container");
-        container.innerHTML = "";
-        const search = document.getElementById("searchInput").value.toLowerCase();
-        
-        switch(currentView) {
-            case 'home': renderHomepage(container, search); break;
-            case 'library': renderLibrary(container, search); break;
-            case 'channels': renderChannels(container, search); break;
-            case 'liked': renderLiked(container, search); break;
-        }
+      const container = document.getElementById('content-container'); container.innerHTML=''; const search = document.getElementById('searchInput').value.toLowerCase();
+      switch(currentView) { case 'home': renderHomepage(container, search); break; case 'library': renderLibrary(container, search); break; case 'channels': renderChannels(container, search); break; case 'liked': renderLiked(container, search); break; default: renderHomepage(container, search); }
     }
-    
+
     function createVideoCard(video) {
-        const card = document.createElement("div");
-        card.className = "card video-card";
-        card.draggable = (currentView === 'library');
-        if (card.draggable) {
-            card.addEventListener("dragstart", () => { draggedItem = video; card.classList.add("dragging"); });
-            card.addEventListener("dragend", () => { draggedItem = null; card.classList.remove('dragging'); });
-        }
-        card.onclick = () => playVideo(video);
-
-        const del = document.createElement("button");
-        del.className = "delete-button"; del.textContent = "×";
-        del.onclick = e => { e.stopPropagation(); deleteItem(video, 'video'); };
-        card.appendChild(del);
-
-        if (video.type === 'video') {
-            const like = document.createElement("button");
-            like.className = `like-button ${video.liked ? 'liked' : ''}`;
-            like.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>';
-            like.onclick = e => { e.stopPropagation(); toggleLike(video); };
-            card.appendChild(like);
-        }
-        
-        const img = document.createElement("img");
-        if (video.type === 'playlist') {
-            img.src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="gray" width="160px" height="90px"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8 12.5v-9l6 4.5-6 4.5z"/></svg>`;
-            img.style.objectFit = 'contain'; img.style.padding = '10px';
-        } else {
-            const videoId = video.id;
-            img.src = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
-            img.onerror = () => { img.src = `https://img.youtube.com/vi/${videoId}/0.jpg`; };
-        }
-
-        const info = document.createElement("div");
-        info.className = "video-info"; info.onclick = e => e.stopPropagation();
-        
-        const titleInput = document.createElement("input");
-        titleInput.value = video.title; titleInput.onchange = () => updateVideoInfo(video, "title", titleInput.value);
-        const catInput = document.createElement("input");
-        catInput.value = video.category; catInput.onchange = () => updateVideoInfo(video, "category", catInput.value);
-        info.appendChild(titleInput); info.appendChild(catInput);
-        
-        card.appendChild(img); card.appendChild(info);
-        return card;
+      const card = document.createElement('div'); card.className='card video-card'; card.draggable = (currentView==='library'); if(card.draggable){ card.addEventListener('dragstart',()=>{ draggedItem=video; card.classList.add('dragging'); }); card.addEventListener('dragend',()=>{ draggedItem=null; card.classList.remove('dragging'); }); }
+      card.onclick = () => playVideo(video);
+      const del = document.createElement('button'); del.className='delete-button'; del.textContent='×'; del.onclick = e => { e.stopPropagation(); deleteItem(video,'video'); };
+      card.appendChild(del);
+      if (video.type==='video') { const like = document.createElement('button'); like.className = `like-button ${video.liked ? 'liked' : ''}`; like.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>';
+        like.onclick = e => { e.stopPropagation(); toggleLike(video); };
+        card.appendChild(like); }
+      const img = document.createElement('img');
+      if (video.type==='playlist') { img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="gray" width="160px" height="90px"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8 12.5v-9l6 4.5-6 4.5z"/></svg>'; img.style.objectFit='contain'; img.style.padding='10px'; }
+      else { const videoId = video.id; img.src = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`; img.onerror = () => { img.src = `https://img.youtube.com/vi/${videoId}/0.jpg`; }; }
+      const info = document.createElement('div'); info.className = 'video-info'; info.onclick = e => e.stopPropagation(); const titleInput = document.createElement('input'); titleInput.value = video.title; titleInput.onchange = () => updateVideoInfo(video,'title',titleInput.value); const catInput = document.createElement('input'); catInput.value = video.category; catInput.onchange = () => updateVideoInfo(video,'category',catInput.value); info.appendChild(titleInput); info.appendChild(catInput);
+      card.appendChild(img); card.appendChild(info); return card;
     }
 
-    function renderHomepage(container, search) {
-        const grid = document.createElement("div");
-        grid.className = "videos-grid";
-        const filtered = videoLinks.filter(v => v.title.toLowerCase().includes(search));
-        if(filtered.length === 0) container.innerHTML = "<div class='empty-state'>No videos found. Add some in the Library view!</div>";
-        filtered.forEach(video => grid.appendChild(createVideoCard(video)));
-        container.appendChild(grid);
-    }
+    function renderHomepage(container, search) { const grid = document.createElement('div'); grid.className = 'videos-grid'; const filtered = videoLinks.filter(v => v.title.toLowerCase().includes(search)); if(filtered.length === 0) container.innerHTML = '<div class="empty-state">No videos found. Add some in the Library view!</div>'; filtered.forEach(video => grid.appendChild(createVideoCard(video))); container.appendChild(grid); }
     function renderLibrary(container, search) {
-        const filtered = videoLinks.filter(v => v.title.toLowerCase().includes(search) || v.category.toLowerCase().includes(search));
-        if(filtered.length === 0) { container.innerHTML = "<div class='empty-state'>Your library is empty. Add videos to get started.</div>"; return; }
-        
-        const grouped = {};
-        filtered.forEach(v => {
-            if (!grouped[v.category]) grouped[v.category] = [];
-            grouped[v.category].push(v);
-        });
-        const datalist = document.getElementById("categorySuggestions");
-        datalist.innerHTML = "";
-        [...new Set(videoLinks.map(v => v.category))].forEach(cat => {
-            const option = document.createElement("option"); option.value = cat; datalist.appendChild(option);
-        });
-        for (const [category, vids] of Object.entries(grouped)) {
-            const section = document.createElement("div"); section.className = "category-section";
-            const catTitle = document.createElement("div"); catTitle.className = "category-title"; catTitle.textContent = category;
-            section.appendChild(catTitle);
-            const grid = document.createElement("div"); grid.className = "videos-grid"; grid.dataset.category = category;
-            grid.addEventListener("dragover", e => { e.preventDefault(); grid.classList.add("drag-over"); });
-            grid.addEventListener("dragleave", () => { grid.classList.remove("drag-over"); });
-            grid.addEventListener("drop", e => {
-                e.preventDefault(); grid.classList.remove("drag-over");
-                if (!draggedItem) return;
-                const idx = videoLinks.findIndex(v => v.id === draggedItem.id && v.type === draggedItem.type);
-                if (idx > -1) { videoLinks[idx].category = grid.dataset.category; saveData(); renderContent(); }
-            });
-            vids.forEach(video => grid.appendChild(createVideoCard(video)));
-            section.appendChild(grid);
-            container.appendChild(section);
-        }
+      const filtered = videoLinks.filter(v => v.title.toLowerCase().includes(search) || v.category.toLowerCase().includes(search));
+      if(filtered.length === 0) { container.innerHTML = '<div class="empty-state">Your library is empty. Add videos to get started.</div>'; return; }
+      const grouped = {};
+      filtered.forEach(v => { if(!grouped[v.category]) grouped[v.category]=[]; grouped[v.category].push(v); });
+      const datalist = document.getElementById('categorySuggestions'); datalist.innerHTML=''; [...new Set(videoLinks.map(v => v.category))].forEach(cat=>{ const option=document.createElement('option'); option.value=cat; datalist.appendChild(option); });
+      for(const [category, vids] of Object.entries(grouped)){
+        const section = document.createElement('div'); section.className='category-section'; const catTitle = document.createElement('div'); catTitle.className='category-title'; catTitle.textContent = category; section.appendChild(catTitle);
+        const grid = document.createElement('div'); grid.className='videos-grid'; grid.dataset.category = category;
+        grid.addEventListener('dragover', e => { e.preventDefault(); grid.classList.add('drag-over'); });
+        grid.addEventListener('dragleave', () => { grid.classList.remove('drag-over'); });
+        grid.addEventListener('drop', e => { e.preventDefault(); grid.classList.remove('drag-over'); if(!draggedItem) return; const idx = videoLinks.findIndex(v=>v.id===draggedItem.id && v.type===draggedItem.type); if(idx>-1){ videoLinks[idx].category = grid.dataset.category; saveData(); renderContent(); } });
+        vids.forEach(video=>grid.appendChild(createVideoCard(video)));
+        section.appendChild(grid); container.appendChild(section);
+      }
     }
-    function renderChannels(container, search) {
-        const grid = document.createElement("div");
-        grid.className = "videos-grid";
-        const filtered = channels.filter(c => (c.name || c.handle).toLowerCase().includes(search));
-        if(filtered.length === 0) container.innerHTML = "<div class='empty-state'>No channels added yet.</div>";
-        
-        filtered.forEach(channel => {
-            const card = document.createElement("a");
-            card.className = "card channel-card";
-            card.href = channel.url;
-            card.target = "_blank";
+    function renderChannels(container, search){ const grid=document.createElement('div'); grid.className='videos-grid'; const filtered = channels.filter(c => (c.name||c.handle).toLowerCase().includes(search)); if(filtered.length===0) container.innerHTML='<div class="empty-state">No channels added yet.</div>'; filtered.forEach(channel=>{ const card=document.createElement('a'); card.className='card channel-card'; card.href=channel.url; card.target='_blank'; const del=document.createElement('button'); del.className='delete-button'; del.textContent='×'; del.onclick = e => { e.preventDefault(); e.stopPropagation(); deleteItem(channel,'channel'); }; const thumb=document.createElement('img'); thumb.className='channel-thumbnail'; thumb.src=`https://unavatar.io/youtube/${channel.handle}`; thumb.onerror = () => { thumb.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23888" width="80px" height="80px"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>'; thumb.style.padding='20px'; thumb.style.boxSizing='border-box'; };
+        const name=document.createElement('div'); name.className='channel-name'; name.textContent = channel.name || channel.handle; card.appendChild(del); card.appendChild(thumb); card.appendChild(name); grid.appendChild(card);
+      }); container.appendChild(grid); }
+    function renderLiked(container, search){ const grid=document.createElement('div'); grid.className='videos-grid'; const filtered=videoLinks.filter(v=>v.liked && v.title.toLowerCase().includes(search)); if(filtered.length===0) container.innerHTML='<div class="empty-state">You haven\'t liked any videos yet.</div>'; filtered.forEach(video=>grid.appendChild(createVideoCard(video))); container.appendChild(grid); }
 
-            const del = document.createElement("button");
-            del.className = "delete-button"; del.textContent = "×";
-            del.onclick = e => { 
-                e.preventDefault();
-                e.stopPropagation(); 
-                deleteItem(channel, 'channel'); 
-            };
+    // -------------------- Small Helpers --------------------
+    function escapeHtml(str){ return (''+str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-            const thumb = document.createElement("img");
-            thumb.className = "channel-thumbnail";
-            thumb.src = `https://unavatar.io/youtube/${channel.handle}`;
-            thumb.onerror = () => {
-                thumb.src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23888" width="80px" height="80px"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`;
-                thumb.style.padding = '20px';
-                thumb.style.boxSizing = 'border-box';
-            };
-            
-            const name = document.createElement("div");
-            name.className = "channel-name";
-            name.textContent = channel.name || channel.handle;
-            
-            card.appendChild(del);
-            card.appendChild(thumb);
-            card.appendChild(name);
-            grid.appendChild(card);
-        });
-        container.appendChild(grid);
+    // -------------------- LZ-String (compressed sync) --------------------
+    var LZString=function(){var f=String.fromCharCode,d={};function e(a,b){if(!d[a]){d[a]={};for(var c=0;c<a.length;c++)d[a][a.charAt(c)]=c}return d[a][b]}var h={compressToEncodedURIComponent:function(a){return null==a?"":h._compress(a,6,function(c){return"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$".charAt(c)})},decompressFromEncodedURIComponent:function(a){return null==a?"":""==a?null:h._decompress(a.length,32,function(c){return e("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$",a.charAt(c))})},_compress:function(a,b,c){if(null==a)return"";var g,k,l,m={},n={},o="",p="",q="",r=2,s=3,t=2,u=[],v=0,w=0;for(l=0;l<a.length;l+=1)if(o=a.charAt(l),Object.prototype.hasOwnProperty.call(m,o)||(m[o]=s++,n[o]=!0),p=q+o,Object.prototype.hasOwnProperty.call(m,p))q=p;else{if(Object.prototype.hasOwnProperty.call(n,q)){if(q.charCodeAt(0)<256){for(g=0;g<t;g++)v<<=1,w==b-1?(w=0,u.push(c(v)),v=0):w++;for(k=q.charCodeAt(0),g=0;8>g;g++)v=v<<1|1&k,w==b-1?(w=0,u.push(c(v)),v=0):w++,k>>=1}else{for(k=1,g=0;g<t;g++)v=v<<1|k,w==b-1?(w=0,u.push(c(v)),v=0):w++,k=0;for(k=q.charCodeAt(0),g=0;16>g;g++)v=v<<1|1&k,w==b-1?(w=0,u.push(c(v)),v=0):w++,k>>=1}r--,0==r&&(r=Math.pow(2,t),t++),delete n[q]}else for(k=m[q],g=0;g<t;g++)v=v<<1|1&k,w==b-1?(w=0,u.push(c(v)),v=0):w++,k>>=1;r--,0==r&&(r=Math.pow(2,t),t++),m[p]=s++,q=String(o)}if(""!==q){if(Object.prototype.hasOwnProperty.call(n,q)){if(q.charCodeAt(0)<256){for(g=0;g<t;g++)v<<=1,w==b-1?(w=0,u.push(c(v)),v=0):w++;for(k=q.charCodeAt(0),g=0;8>g;g++)v=v<<1|1&k,w==b-1?(w=0,u.push(c(v)),v=0):w++,k>>=1}else{for(k=1,g=0;g<t;g++)v=v<<1|k,w==b-1?(w=0,u.push(c(v)),v=0):w++,k=0;for(k=q.charCodeAt(0),g=0;16>g;g++)v=v<<1|1&k,w==b-1?(w=0,u.push(c(v)),v=0):w++,k>>=1}r--,0==r&&(r=Math.pow(2,t),t++),delete n[q]}else for(k=m[q],g=0;g<t;g++)v=v<<1|1&k,w==b-1?(w=0,u.push(c(v)),v=0):w++,k>>=1;r--,0==r&&(r=Math.pow(2,t),t++)}for(k=2,g=0;g<t;g++)v=v<<1|1&k,w==b-1?(w=0,u.push(c(v)),v=0):w++,k>>=1;for(;;){if(v<<=1,w==b-1){u.push(c(v));break}w++}return u.join("")},_decompress:function(a,b,c){var g,k,l,m,n,o,p,q=[],r=4,s=4,t=3,u="",v=[],w={val:c(0),position:b,index:1};for(g=0;3>g;g+=1)q[g]=g;for(l=0,n=Math.pow(2,2),o=1;o!=n;)m=w.val&w.position,w.position>>=1,0==w.position&&(w.position=b,w.val=c(w.index++)),l|=(m>0?1:0)*o,o<<=1;switch(l){case 0:for(l=0,n=Math.pow(2,8),o=1;o!=n;)m=w.val&w.position,w.position>>=1,0==w.position&&(w.position=b,w.val=c(w.index++)),l|=(m>0?1:0)*o,o<<=1;p=f(l);break;case 1:for(l=0,n=Math.pow(2,16),o=1;o!=n;)m=w.val&w.position,w.position>>=1,0==w.position&&(w.position=b,w.val=c(w.index++)),l|=(m>0?1:0)*o,o<<=1;p=f(l);break;case 2:return""}for(q[3]=p,k=p,v.push(p);;){if(w.index>a)return"";for(l=0,n=Math.pow(2,t),o=1;o!=n;)m=w.val&w.position,w.position>>=1,0==w.position&&(w.position=b,w.val=c(w.index++)),l|=(m>0?1:0)*o,o<<=1;switch(p=l){case 0:for(l=0,n=Math.pow(2,8),o=1;o!=n;)m=w.val&w.position,w.position>>=1,0==w.position&&(w.position=b,w.val=c(w.index++)),l|=(m>0?1:0)*o,o<<=1;q[s++]=f(l),p=s-1,r--;break;case 1:for(l=0,n.Math.pow(2,16),o=1;o!=n;)m=w.val&w.position,w.position>>=1,0==w.position&&(w.position=b,w.val=c(w.index++)),l|=(m>0?1:0)*o,o<<=1;q[s++]=f(l),p=s-1,r--;break;case 2:return v.join("")}if(0==r&&(r=Math.pow(2,t),t++),q[p])u=q[p];else{if(p!==s)return null;u=k+k.charAt(0)}v.push(u),q[s++]=k+u.charAt(0),r--,k=u,0==r&&(r=Math.pow(2,t),t++)}}};return h}();
+
+    // -------------------- App Init --------------------
+    document.addEventListener('DOMContentLoaded', () => { loadData(); handleUrlDataImport(); setupInitialPlayerView(); navigateTo('home'); renderFiles(); });
+
+    // -------------------- Service Worker Registration --------------------
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js').then(()=>console.log('✅ SW registered')).catch(err=>console.warn('SW failed',err));
     }
-    function renderLiked(container, search) {
-        const grid = document.createElement("div");
-        grid.className = "videos-grid";
-        const filtered = videoLinks.filter(v => v.liked && v.title.toLowerCase().includes(search));
-        if(filtered.length === 0) container.innerHTML = "<div class='empty-state'>You haven't liked any videos yet.</div>";
-        filtered.forEach(video => grid.appendChild(createVideoCard(video)));
-        container.appendChild(grid);
-    }
-    
-    // --- LZ-String Library ---
-    var LZString=function(){var f=String.fromCharCode,d={};function e(a,b){if(!d[a]){d[a]={};for(var c=0;c<a.length;c++)d[a][a.charAt(c)]=c}return d[a][b]}var h={compressToEncodedURIComponent:function(a){return null==a?"":h._compress(a,6,function(c){return"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$".charAt(c)})},decompressFromEncodedURIComponent:function(a){return null==a?"":""==a?null:h._decompress(a.length,32,function(c){return e("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$",a.charAt(c))})},_compress:function(a,b,c){if(null==a)return"";var g,k,l,m={},n={},o="",p="",q="",r=2,s=3,t=2,u=[],v=0,w=0;for(l=0;l<a.length;l+=1)if(o=a.charAt(l),Object.prototype.hasOwnProperty.call(m,o)||(m[o]=s++,n[o]=!0),p=q+o,Object.prototype.hasOwnProperty.call(m,p))q=p;else{if(Object.prototype.hasOwnProperty.call(n,q)){if(q.charCodeAt(0)<256){for(g=0;g<t;g++)v<<=1,w==b-1?(w=0,u.push(c(v)),v=0):w++;for(k=q.charCodeAt(0),g=0;8>g;g++)v=v<<1|1&k,w==b-1?(w=0,u.push(c(v)),v=0):w++,k>>=1}else{for(k=1,g=0;g<t;g++)v=v<<1|k,w==b-1?(w=0,u.push(c(v)),v=0):w++,k=0;for(k=q.charCodeAt(0),g=0;16>g;g++)v=v<<1|1&k,w==b-1?(w=0,u.push(c(v)),v=0):w++,k>>=1}r--,0==r&&(r=Math.pow(2,t),t++),delete n[q]}else for(k=m[q],g=0;g<t;g++)v=v<<1|1&k,w==b-1?(w=0,u.push(c(v)),v=0):w++,k>>=1;r--,0==r&&(r=Math.pow(2,t),t++),m[p]=s++,q=String(o)}if(""!==q){if(Object.prototype.hasOwnProperty.call(n,q)){if(q.charCodeAt(0)<256){for(g=0;g<t;g++)v<<=1,w==b-1?(w=0,u.push(c(v)),v=0):w++;for(k=q.charCodeAt(0),g=0;8>g;g++)v=v<<1|1&k,w==b-1?(w=0,u.push(c(v)),v=0):w++,k>>=1}else{for(k=1,g=0;g<t;g++)v=v<<1|k,w==b-1?(w=0,u.push(c(v)),v=0):w++,k=0;for(k=q.charCodeAt(0),g=0;16>g;g++)v=v<<1|1&k,w==b-1?(w=0,u.push(c(v)),v=0):w++,k>>=1}r--,0==r&&(r=Math.pow(2,t),t++),delete n[q]}else for(k=m[q],g=0;g<t;g++)v=v<<1|1&k,w==b-1?(w=0,u.push(c(v)),v=0):w++,k>>=1;r--,0==r&&(r=Math.pow(2,t),t++)}for(k=2,g=0;g<t;g++)v=v<<1|1&k,w==b-1?(w=0,u.push(c(v)),v=0):w++,k>>=1;for(;;){if(v<<=1,w==b-1){u.push(c(v));break}w++}return u.join("")},_decompress:function(a,b,c){var g,k,l,m,n,o,p,q=[],r=4,s=4,t=3,u="",v=[],w={val:c(0),position:b,index:1};for(g=0;3>g;g+=1)q[g]=g;for(l=0,n=Math.pow(2,2),o=1;o!=n;)m=w.val&w.position,w.position>>=1,0==w.position&&(w.position=b,w.val=c(w.index++)),l|=(m>0?1:0)*o,o<<=1;switch(l){case 0:for(l=0,n=Math.pow(2,8),o=1;o!=n;)m=w.val&w.position,w.position>>=1,0==w.position&&(w.position=b,w.val=c(w.index++)),l|=(m>0?1:0)*o,o<<=1;p=f(l);break;case 1:for(l=0,n=Math.pow(2,16),o=1;o!=n;)m=w.val&w.position,w.position>>=1,0==w.position&&(w.position=b,w.val=c(w.index++)),l|=(m>0?1:0)*o,o<<=1;p=f(l);break;case 2:return""}for(q[3]=p,k=p,v.push(p);;){if(w.index>a)return"";for(l=0,n=Math.pow(2,t),o=1;o!=n;)m=w.val&w.position,w.position>>=1,0==w.position&&(w.position=b,w.val=c(w.index++)),l|=(m>0?1:0)*o,o<<=1;switch(p=l){case 0:for(l=0,n=Math.pow(2,8),o=1;o!=n;)m=w.val&w.position,w.position>>=1,0==w.position&&(w.position=b,w.val=c(w.index++)),l|=(m>0?1:0)*o,o<<=1;q[s++]=f(l),p=s-1,r--;break;case 1:for(l=0,n=Math.pow(2,16),o=1;o!=n;)m=w.val&w.position,w.position>>=1,0==w.position&&(w.position=b,w.val=c(w.index++)),l|=(m>0?1:0)*o,o<<=1;q[s++]=f(l),p=s-1,r--;break;case 2:return v.join("")}if(0==r&&(r=Math.pow(2,t),t++),q[p])u=q[p];else{if(p!==s)return null;u=k+k.charAt(0)}v.push(u),q[s++]=k+u.charAt(0),r--,k=u,0==r&&(r=Math.pow(2,t),t++)}}};return h}();
 
-    // --- App Initialization ---
-    document.addEventListener('DOMContentLoaded', () => {
-      handleUrlDataImport();
-      if (videoLinks.length === 0) loadData();
-      setupInitialPlayerView();
-      navigateTo('home');
-    });
   </script>
 </body>
 </html>
+
+
+
+
+
+
 
