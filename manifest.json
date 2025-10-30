@@ -1,4 +1,4 @@
-<!-- ===== manifest.json ===== -->
+
 {
   "name": "e tube - Productive YouTube",
   "short_name": "e tube",
@@ -11,3 +11,4 @@
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
   ]
 }
+
