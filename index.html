@@ -142,10 +142,9 @@
                 <!-- Forms -->
                 <div id="video-form" class="grid grid-cols-1 md:grid-cols-12 gap-3">
                     <input type="text" id="videoInput" placeholder="Paste YouTube Video or Playlist link..." class="md:col-span-6 px-4 py-3.5 bg-zinc-900 border border-zinc-700 rounded-2xl focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 text-sm transition-all placeholder-zinc-600">
-                    <!-- Updated Category Input with Datalist -->
                     <input type="text" id="categoryInput" placeholder="Category (Study, Coding...)" list="categorySuggestions" class="md:col-span-4 px-4 py-3.5 bg-zinc-900 border border-zinc-700 rounded-2xl focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 text-sm transition-all placeholder-zinc-600">
                     <datalist id="categorySuggestions"></datalist>
-                    <input type="hidden" id="titleInput"> <!-- Simplified: Title auto-fetched or generic -->
+                    <input type="hidden" id="titleInput">
                     <button onclick="addVideo()" class="md:col-span-2 px-6 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-2xl transition-all shadow-lg shadow-emerald-500/10 flex items-center justify-center gap-2 active:scale-95">
                         <i data-lucide="plus" class="w-5 h-5"></i> Add
                     </button>
@@ -324,6 +323,7 @@
             navigateTo('home');
         }
 
+        // --- EXTENSION LISTENER ---
         function handleUrlAddParameter() {
             const params = new URLSearchParams(window.location.search);
             const addUrl = params.get('add');
@@ -349,6 +349,8 @@
                         });
                         saveData();
                         setTimeout(() => showToast("Added via Extension!"), 500);
+                    } else {
+                        setTimeout(() => showToast("Video already in library", "error"), 500);
                     }
                 }
                 
@@ -635,7 +637,7 @@
           document.getElementById("videoInput").value = "";
           document.getElementById("categoryInput").value = "";
           document.getElementById("titleInput").value = "";
-          showMessage("✅ Added!");
+          showToast("✅ Added!");
           renderContent();
         }
 
@@ -654,34 +656,50 @@
             saveData();
             document.getElementById('channelInput').value = '';
             document.getElementById('channelNameInput').value = '';
-            showMessage("✅ Channel Added!");
+            showToast("✅ Channel Added!");
             renderContent();
         }
 
-        function deleteItem(item, itemType) {
+        function deleteItem(id, itemType) {
             if (itemType === 'video') {
-                const idx = videoLinks.findIndex(v => v.id === item.id && v.type === item.type);
-                if (idx > -1) videoLinks.splice(idx, 1);
+                videoLinks = videoLinks.filter(v => v.id !== id);
             } else if (itemType === 'channel') {
-                const idx = channels.findIndex(c => c.handle === item.handle);
-                if (idx > -1) channels.splice(idx, 1);
+                channels = channels.filter(c => c.handle !== id);
             }
             saveData();
             renderContent();
         }
         
-        function updateVideoInfo(video, field, value) {
-          const idx = videoLinks.findIndex(v => v.id === video.id && v.type === video.type);
-          if (idx > -1) {
-            videoLinks[idx][field] = value.trim() || videoLinks[idx].id;
+        function updateVideoData(id, field, value) {
+          const video = videoLinks.find(v => v.id === id);
+          if (video) {
+            video[field] = value.trim() || video.id;
             saveData();
             renderContent(); 
           }
         }
-        function toggleLike(video) {
-            const idx = videoLinks.findIndex(v => v.id === video.id && v.type === video.type);
-            if(idx > -1) {
-                videoLinks[idx].liked = !videoLinks[idx].liked;
+        
+        function toggleLike(id) {
+            const video = videoLinks.find(v => v.id === id);
+            if(video) {
+                video.liked = !video.liked;
+                saveData();
+                renderContent();
+            }
+        }
+
+        // --- Drag & Drop ---
+        function handleDragStart(e, id) {
+            draggedItem = videoLinks.find(v => v.id === id);
+            e.target.classList.add('opacity-50');
+        }
+        function handleDragEnd(e) {
+            e.target.classList.remove('opacity-50');
+            draggedItem = null;
+        }
+        function handleDrop(category) {
+            if (draggedItem) {
+                draggedItem.category = category;
                 saveData();
                 renderContent();
             }
@@ -700,7 +718,7 @@
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
-            showMessage("✅ Data exported!");
+            showToast("✅ Data exported!");
         }
 
         function importData(event) {
@@ -716,7 +734,7 @@
                         channels = importedData.channels || [];
                         saveData();
                         navigateTo('home');
-                        showMessage(`✅ Imported ${videoLinks.length} items successfully!`);
+                        showToast(`✅ Imported ${videoLinks.length} items successfully!`);
                     } 
                     // Check for old format (just an array of videos)
                     else if (Array.isArray(importedData)) {
@@ -724,13 +742,13 @@
                         channels = []; // Clear channels if importing old format
                         saveData();
                         navigateTo('home');
-                        showMessage(`✅ Imported ${videoLinks.length} videos (Legacy Format)`);
+                        showToast(`✅ Imported ${videoLinks.length} videos (Legacy Format)`);
                     }
                     else { 
-                        showMessage("🔴 Invalid file format.", 4000); 
+                        showToast("🔴 Invalid file format.", "error"); 
                     }
                 } catch (error) { 
-                    showMessage("🔴 Error reading file.", 5000);
+                    showToast("🔴 Error reading file.", "error");
                     console.error("Import Error:", error);
                 }
             };
@@ -749,12 +767,12 @@
                         videoLinks = importedData.videos;
                         channels = importedData.channels || [];
                         saveData();
-                        showMessage("✅ Sync complete!", 4000);
+                        showToast("✅ Sync complete!");
                         history.replaceState(null, '', window.location.pathname);
                     }
                 } catch (e) {
                     console.error("Failed to parse sync data:", e);
-                    showMessage("🔴 Sync failed. The QR code might be invalid.", 5000);
+                    showToast("🔴 Sync failed. The QR code might be invalid.", "error");
                 }
             }
         }
@@ -762,7 +780,7 @@
         function showQrModal() {
             const allData = { videos: videoLinks, channels: channels };
             if (Object.values(allData).every(arr => arr.length === 0)) {
-                showMessage("Add some data first to create a sync code.", 4000);
+                showToast("Add some data first to create a sync code.", "error");
                 return;
             }
             const dataString = JSON.stringify(allData);
@@ -770,14 +788,14 @@
             const currentUrl = window.location.origin + window.location.pathname;
             const syncUrl = `${currentUrl}?data=${compressedData}`;
             const QR_CODE_URL_LIMIT = 2000;
-            const qrView = document.getElementById('qr-view');
-            const fallbackView = document.getElementById('qr-fallback-view');
+            const qrView = document.getElementById('qr-content');
+            const fallbackView = document.getElementById('qr-fallback');
             if (syncUrl.length > QR_CODE_URL_LIMIT) {
-                 qrView.style.display = 'none';
-                 fallbackView.style.display = 'block';
+                 qrView.classList.add('hidden');
+                 fallbackView.classList.remove('hidden');
             } else {
-                qrView.style.display = 'block';
-                fallbackView.style.display = 'none';
+                qrView.classList.remove('hidden');
+                fallbackView.classList.add('hidden');
                 const qrContainer = document.getElementById('qrcode-container');
                 qrContainer.innerHTML = '';
                 new QRCode(qrContainer, {
@@ -823,6 +841,7 @@
             document.getElementById('scan-initial').classList.add('hidden');
             document.getElementById('scan-loading').classList.remove('hidden');
             document.getElementById('scan-status').textContent = "Scanning image for text...";
+            document.getElementById('scan-status').className = "text-emerald-400 font-medium animate-pulse";
 
             try {
                 // 1. Perform OCR
@@ -838,7 +857,6 @@
                 }
 
                 // 2. Clean Text (Heuristic)
-                // Remove timestamps, view counts, "subscribe", etc.
                 const cleanQuery = cleanOcrText(text);
                 document.getElementById('scan-status').textContent = `Searching for: "${cleanQuery.substring(0, 20)}..."`;
 
@@ -864,11 +882,11 @@
                         };
                         
                         if (videoLinks.find(v => v.id === newVideo.id)) {
-                            showMessage("🟡 Already in library", 3000);
+                            showToast("🟡 Already in library", "error");
                         } else {
                             videoLinks.unshift(newVideo);
                             saveData();
-                            showMessage("✅ Added from scan!", 3000);
+                            showToast("✅ Added from scan!");
                             renderContent();
                         }
                         hideScanModal();
@@ -920,8 +938,17 @@
             return null;
         }
 
-
         // --- Main Rendering Logic ---
+        function renderEmptyState(container, text) {
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-20 text-center opacity-40">
+                    <i data-lucide="ghost" class="w-12 h-12 mb-4 text-zinc-600"></i>
+                    <p class="text-lg font-medium text-zinc-500">${text}</p>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
         function renderContent() {
             const container = document.getElementById("content-container");
             container.innerHTML = "";
@@ -936,147 +963,134 @@
             lucide.createIcons();
         }
         
-        function createVideoCard(video) {
-            const card = document.createElement("div");
-            card.className = "card video-card";
-            card.draggable = (currentView === 'library');
-            if (card.draggable) {
-                card.addEventListener("dragstart", () => { draggedItem = video; card.classList.add("dragging"); });
-                card.addEventListener("dragend", () => { draggedItem = null; card.classList.remove('dragging'); });
-            }
-            card.onclick = () => playVideo(video);
-
-            const del = document.createElement("button");
-            del.className = "delete-button"; del.textContent = "×";
-            del.onclick = e => { e.stopPropagation(); deleteItem(video, 'video'); };
-            card.appendChild(del);
-
-            if (video.type === 'video') {
-                const like = document.createElement("button");
-                like.className = `like-button ${video.liked ? 'liked' : ''}`;
-                like.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>';
-                like.onclick = e => { e.stopPropagation(); toggleLike(video); };
-                card.appendChild(like);
-            }
+        function createVideoCardHtml(v, draggable = false) {
+            const isPlaylist = v.type === 'playlist';
+            const imgUrl = isPlaylist ? `https://img.youtube.com/vi/${v.id}/mqdefault.jpg` : `https://img.youtube.com/vi/${v.id}/mqdefault.jpg`;
             
-            const img = document.createElement("img");
-            if (video.type === 'playlist') {
-                img.src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="gray" width="160px" height="90px"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8 12.5v-9l6 4.5-6 4.5z"/></svg>`;
-                img.style.objectFit = 'contain'; img.style.padding = '10px';
-            } else {
-                const videoId = video.id;
-                img.src = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
-                img.onerror = () => { img.src = `https://img.youtube.com/vi/${videoId}/0.jpg`; };
+            const card = document.createElement('div');
+            card.className = "card-hover group relative flex flex-col bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-lg cursor-pointer";
+            if(draggable) {
+                card.draggable = true;
+                card.ondragstart = (e) => handleDragStart(e, v.id);
+                card.ondragend = handleDragEnd;
             }
+            card.onclick = () => playVideo(v);
 
-            const info = document.createElement("div");
-            info.className = "video-info"; info.onclick = e => e.stopPropagation();
-            
-            const titleInput = document.createElement("input");
-            titleInput.value = video.title; titleInput.onchange = () => updateVideoInfo(video, "title", titleInput.value);
-            const catInput = document.createElement("input");
-            catInput.value = video.category; catInput.onchange = () => updateVideoInfo(video, "category", catInput.value);
-            info.appendChild(titleInput); info.appendChild(catInput);
-            
-            card.appendChild(img); card.appendChild(info);
+            card.innerHTML = `
+                <div class="relative aspect-video overflow-hidden">
+                    <img src="${imgUrl}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-80 group-hover:opacity-100" onerror="this.src='https://placehold.co/600x400/18181b/FFF?text=No+Thumb'">
+                    <div class="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors"></div>
+                    <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <div class="p-3 bg-emerald-500 rounded-full text-white shadow-xl transform translate-y-4 group-hover:translate-y-0 transition-transform">
+                            <i data-lucide="play" class="w-6 h-6 fill-current"></i>
+                        </div>
+                    </div>
+                    ${isPlaylist ? '<div class="absolute bottom-2 right-2 px-2 py-1 bg-black/80 backdrop-blur-md rounded text-[10px] font-bold tracking-widest uppercase text-emerald-400 border border-emerald-400/30">Playlist</div>' : ''}
+                </div>
+                <div class="p-4 flex flex-col flex-grow">
+                    <div class="flex justify-between items-start gap-2 mb-2">
+                        <input value="${v.title}" onchange="updateVideoData('${v.id}', 'title', this.value)" onclick="event.stopPropagation()" class="bg-transparent border border-transparent hover:border-zinc-700 rounded px-1 text-sm font-bold text-zinc-100 w-full truncate focus:bg-zinc-800 focus:outline-none">
+                        <button onclick="event.stopPropagation(); deleteItem('${v.id}', 'video')" class="text-zinc-600 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-zinc-800">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                    <div class="mt-auto flex justify-between items-center">
+                        <input value="${v.category}" onchange="updateVideoData('${v.id}', 'category', this.value)" onclick="event.stopPropagation()" class="bg-transparent border border-transparent hover:border-zinc-700 rounded px-1 text-xs text-zinc-500 w-1/2 truncate focus:bg-zinc-800 focus:outline-none">
+                        ${!isPlaylist ? `
+                        <button onclick="event.stopPropagation(); toggleLike('${v.id}')" class="p-2 rounded-full transition-all hover:bg-zinc-800 ${v.liked ? 'text-red-500' : 'text-zinc-600 hover:text-red-400'}">
+                            <i data-lucide="heart" class="w-4 h-4 ${v.liked ? 'fill-current' : ''}"></i>
+                        </button>` : ''}
+                    </div>
+                </div>
+            `;
             return card;
         }
 
         function renderHomepage(container, search) {
             const grid = document.createElement("div");
-            grid.className = "videos-grid";
+            grid.className = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 animate-fade-in";
             const filtered = videoLinks.filter(v => v.title.toLowerCase().includes(search));
-            if(filtered.length === 0) container.innerHTML = "<div class='empty-state'>No videos found. Add some in the Library view!</div>";
-            filtered.forEach(video => grid.appendChild(createVideoCard(video)));
+            if(filtered.length === 0) return renderEmptyState(container, "No videos found. Add some in the Library view!");
+            filtered.forEach(video => grid.appendChild(createVideoCardHtml(video)));
             container.appendChild(grid);
         }
+
         function renderLibrary(container, search) {
             const filtered = videoLinks.filter(v => v.title.toLowerCase().includes(search) || v.category.toLowerCase().includes(search));
-            if(filtered.length === 0) { container.innerHTML = "<div class='empty-state'>Your library is empty. Add videos to get started.</div>"; return; }
+            if(filtered.length === 0) return renderEmptyState(container, "Library is empty. Add videos to get started.");
             
             const grouped = {};
             filtered.forEach(v => {
                 if (!grouped[v.category]) grouped[v.category] = [];
                 grouped[v.category].push(v);
             });
-            // Removed datalist population from here to use centralized function
+
             for (const [category, vids] of Object.entries(grouped)) {
-                const section = document.createElement("div"); section.className = "category-section";
-                const catTitle = document.createElement("div"); catTitle.className = "category-title"; catTitle.textContent = category;
-                section.appendChild(catTitle);
-                const grid = document.createElement("div"); grid.className = "videos-grid"; grid.dataset.category = category;
-                grid.addEventListener("dragover", e => { e.preventDefault(); grid.classList.add("drag-over"); });
-                grid.addEventListener("dragleave", () => { grid.classList.remove("drag-over"); });
-                grid.addEventListener("drop", e => {
-                    e.preventDefault(); grid.classList.remove("drag-over");
-                    if (!draggedItem) return;
-                    const idx = videoLinks.findIndex(v => v.id === draggedItem.id && v.type === draggedItem.type);
-                    if (idx > -1) { videoLinks[idx].category = grid.dataset.category; saveData(); renderContent(); }
-                });
-                vids.forEach(video => grid.appendChild(createVideoCard(video)));
-                section.appendChild(grid);
+                const section = document.createElement("div"); 
+                section.className = "mb-10";
+                section.innerHTML = `
+                    <h2 class="text-xl font-bold mb-4 flex items-center gap-2 text-white">
+                        <span class="w-2 h-6 bg-emerald-500 rounded-full"></span> ${category}
+                    </h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5" id="cat-${category.replace(/[^a-zA-Z0-9]/g, '-')}"></div>
+                `;
                 container.appendChild(section);
+
+                const grid = section.querySelector(`#cat-${category.replace(/[^a-zA-Z0-9]/g, '-')}`);
+                
+                grid.ondragover = e => { e.preventDefault(); grid.classList.add('bg-emerald-500/10', 'rounded-xl'); };
+                grid.ondragleave = e => { grid.classList.remove('bg-emerald-500/10', 'rounded-xl'); };
+                grid.ondrop = e => { 
+                    e.preventDefault(); 
+                    grid.classList.remove('bg-emerald-500/10', 'rounded-xl');
+                    handleDrop(category); 
+                };
+
+                vids.forEach(video => grid.appendChild(createVideoCardHtml(video, true)));
             }
         }
+
         function renderChannels(container, search) {
-            const grid = document.createElement("div");
-            grid.className = "videos-grid";
-            const filtered = channels.filter(c => (c.name || c.handle).toLowerCase().includes(search));
-            if(filtered.length === 0) container.innerHTML = "<div class='empty-state'>No channels added yet.</div>";
+            const chans = channels.filter(c => (c.name || c.handle).toLowerCase().includes(search));
+            if(chans.length === 0) return renderEmptyState(container, "No channels added yet.");
             
-            filtered.forEach(channel => {
+            const grid = document.createElement("div");
+            grid.className = "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5 animate-fade-in";
+            
+            chans.forEach(c => {
                 const card = document.createElement("a");
-                card.className = "card channel-card";
-                card.href = channel.url;
+                card.className = "card-hover group relative bg-zinc-900 border border-zinc-800 rounded-3xl p-6 text-center shadow-lg block";
+                card.href = c.url;
                 card.target = "_blank";
 
-                const del = document.createElement("button");
-                del.className = "delete-button"; del.textContent = "×";
-                del.onclick = e => { 
-                    e.preventDefault();
-                    e.stopPropagation(); 
-                    deleteItem(channel, 'channel'); 
-                };
-
-                const thumb = document.createElement("img");
-                thumb.className = "channel-thumbnail";
-                thumb.src = `https://unavatar.io/youtube/${channel.handle}`;
-                thumb.onerror = () => {
-                    thumb.src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23888" width="80px" height="80px"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`;
-                    thumb.style.padding = '20px';
-                    thumb.style.boxSizing = 'border-box';
-                };
-                
-                const name = document.createElement("div");
-                name.className = "channel-name";
-                name.textContent = channel.name || channel.handle;
-                
-                card.appendChild(del);
-                card.appendChild(thumb);
-                card.appendChild(name);
+                card.innerHTML = `
+                    <button onclick="event.preventDefault(); event.stopPropagation(); deleteItem('${c.handle}', 'channel')" class="absolute top-3 right-3 p-1.5 bg-zinc-800 text-zinc-500 hover:text-red-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-zinc-700">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                    <img src="https://unavatar.io/youtube/${c.handle}" class="w-20 h-20 rounded-full mx-auto mb-4 border-4 border-zinc-800 group-hover:border-emerald-500/30 transition-colors object-cover shadow-xl" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 24 24\\' fill=\\'%23888\\'><path d=\\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\\'/></svg>'">
+                    <h3 class="font-bold text-sm mb-1 truncate text-white px-2">${c.name || c.handle}</h3>
+                    <span class="inline-flex items-center gap-1 text-[10px] text-zinc-500 group-hover:text-emerald-400 uppercase font-bold tracking-widest transition-colors">
+                        Visit <i data-lucide="external-link" class="w-3 h-3"></i>
+                    </span>
+                `;
                 grid.appendChild(card);
             });
             container.appendChild(grid);
         }
+
         function renderLiked(container, search) {
+            const vids = videoLinks.filter(v => v.liked && v.title.toLowerCase().includes(search));
+            if(vids.length === 0) return renderEmptyState(container, "You haven't liked any videos yet.");
+            
             const grid = document.createElement("div");
-            grid.className = "videos-grid";
-            const filtered = videoLinks.filter(v => v.liked && v.title.toLowerCase().includes(search));
-            if(filtered.length === 0) container.innerHTML = "<div class='empty-state'>You haven't liked any videos yet.</div>";
-            filtered.forEach(video => grid.appendChild(createVideoCard(video)));
+            grid.className = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 animate-fade-in";
+            vids.forEach(video => grid.appendChild(createVideoCardHtml(video)));
             container.appendChild(grid);
         }
-        
-        // --- LZ-String Library ---
-        var LZString=function(){var f=String.fromCharCode,d={};function e(a,b){if(!d[a]){d[a]={};for(var c=0;c<a.length;c++)d[a][a.charAt(c)]=c}return d[a][b]}var h={compressToEncodedURIComponent:function(a){return null==a?"":h._compress(a,6,function(c){return"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$".charAt(c)})},decompressFromEncodedURIComponent:function(a){return null==a?"":""==a?null:h._decompress(a.length,32,function(c){return e("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$",a.charAt(c))})},_compress:function(a,b,c){if(null==a)return"";var g,k,l,m={},n={},o="",p="",q="",r=2,s=3,t=2,u=[],v=0,w=0;for(l=0;l<a.length;l+=1)if(o=a.charAt(l),Object.prototype.hasOwnProperty.call(m,o)||(m[o]=s++,n[o]=!0),p=q+o,Object.prototype.hasOwnProperty.call(m,p))q=p;else{if(Object.prototype.hasOwnProperty.call(n,q)){if(q.charCodeAt(0)<256){for(g=0;g<t;g++)v<<=1,w==b-1?(w=0,u.push(c(v)),v=0):w++;for(k=q.charCodeAt(0),g=0;8>g;g++)v=v<<1|1&k,w==b-1?(w=0,u.push(c(v)),v=0):w++,k>>=1}else{for(k=1,g=0;g<t;g++)v=v<<1|k,w==b-1?(w=0,u.push(c(v)),v=0):w++,k=0;for(k=q.charCodeAt(0),g=0;16>g;g++)v=v<<1|1&k,w==b-1?(w=0,u.push(c(v)),v=0):w++,k>>=1}r--,0==r&&(r=Math.pow(2,t),t++),delete n[q]}else for(k=m[q],g=0;g<t;g++)v=v<<1|1&k,w==b-1?(w=0,u.push(c(v)),v=0):w++,k>>=1;r--,0==r&&(r=Math.pow(2,t),t++),m[p]=s++,q=String(o)}if(""!==q){if(Object.prototype.hasOwnProperty.call(n,q)){if(q.charCodeAt(0)<256){for(g=0;g<t;g++)v<<=1,w==b-1?(w=0,u.push(c(v)),v=0):w++;for(k=q.charCodeAt(0),g=0;8>g;g++)v=v<<1|1&k,w==b-1?(w=0,u.push(c(v)),v=0):w++,k>>=1}else{for(k=1,g=0;g<t;g++)v=v<<1|k,w==b-1?(w=0,u.push(c(v)),v=0):w++,k=0;for(k=q.charCodeAt(0),g=0;16>g;g++)v=v<<1|1&k,w==b-1?(w=0,u.push(c(v)),v=0):w++,k>>=1}r--,0==r&&(r=Math.pow(2,t),t++),delete n[q]}else for(k=m[q],g=0;g<t;g++)v=v<<1|1&k,w==b-1?(w=0,u.push(c(v)),v=0):w++,k>>=1;r--,0==r&&(r=Math.pow(2,t),t++)}for(k=2,g=0;g<t;g++)v=v<<1|1&k,w==b-1?(w=0,u.push(c(v)),v=0):w++,k>>=1;for(;;){if(v<<=1,w==b-1){u.push(c(v));break}w++}return u.join("")},_decompress:function(a,b,c){var g,k,l,m,n,o,p,q=[],r=4,s=4,t=3,u="",v=[],w={val:c(0),position:b,index:1};for(g=0;3>g;g+=1)q[g]=g;for(l=0,n=Math.pow(2,2),o=1;o!=n;)m=w.val&w.position,w.position>>=1,0==w.position&&(w.position=b,w.val=c(w.index++)),l|=(m>0?1:0)*o,o<<=1;switch(l){case 0:for(l=0,n=Math.pow(2,8),o=1;o!=n;)m=w.val&w.position,w.position>>=1,0==w.position&&(w.position=b,w.val=c(w.index++)),l|=(m>0?1:0)*o,o<<=1;p=f(l);break;case 1:for(l=0,n=Math.pow(2,16),o=1;o!=n;)m=w.val&w.position,w.position>>=1,0==w.position&&(w.position=b,w.val=c(w.index++)),l|=(m>0?1:0)*o,o<<=1;p=f(l);break;case 2:return""}for(q[3]=p,k=p,v.push(p);;){if(w.index>a)return"";for(l=0,n=Math.pow(2,t),o=1;o!=n;)m=w.val&w.position,w.position>>=1,0==w.position&&(w.position=b,w.val=c(w.index++)),l|=(m>0?1:0)*o,o<<=1;switch(p=l){case 0:for(l=0,n=Math.pow(2,8),o=1;o!=n;)m=w.val&w.position,w.position>>=1,0==w.position&&(w.position=b,w.val=c(w.index++)),l|=(m>0?1:0)*o,o<<=1;q[s++]=f(l),p=s-1,r--;break;case 1:for(l=0,n=Math.pow(2,16),o=1;o!=n;)m=w.val&w.position,w.position>>=1,0==w.position&&(w.position=b,w.val=c(w.index++)),l|=(m>0?1:0)*o,o<<=1;q[s++]=f(l),p=s-1,r--;break;case 2:return v.join("")}if(0==r&&(r=Math.pow(2,t),t++),q[p])u=q[p];else{if(p!==s)return null;u=k+k.charAt(0)}v.push(u),q[s++]=k+u.charAt(0),r--,k=u,0==r&&(r=Math.pow(2,t),t++)}}};return h}();
 
-        // --- App Initialization ---
-        document.addEventListener('DOMContentLoaded', () => {
-            handleUrlDataImport();
-            if (videoLinks.length === 0) loadData();
-            setupInitialPlayerView();
-            navigateTo('home');
-        });
+        // Boot
+        init();
+
     </script>
 </body>
 </html>
